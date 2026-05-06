@@ -105,10 +105,10 @@ pipelines are loaded and listening on `:4317` / `:4318`.
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/05_otel_health.py` — hit
-  `:13133/healthz` and print the receiver/exporter status *(planned)*
+  `:13133/healthz` and print the receiver/exporter status *(existing)*
 - **Intermediate** — `examples/intermediate/05_otel_emit_metric.py` —
   emit a single counter over OTLP/HTTP and watch it land in Prometheus
-  under `oss_*` *(planned)*
+  under `oss_*` *(existing)*
 - **Advanced** — `examples/advanced/02_otel_emit.py` — emit OTLP traces
   and metrics from Python over gRPC `:4317` *(existing)*
 

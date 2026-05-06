@@ -103,9 +103,9 @@ the daemon is reachable from the current shell.
   `/var/log/docker.log`, then re-run `bash scripts/setup/docker.sh --check`.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/docker_hello.py` — run `hello-world` from Python via the Docker SDK *(planned)*
-- **Intermediate** — `examples/intermediate/docker_compose_up.py` — bring an `infra/*/docker-compose.yml` up/down programmatically *(planned)*
-- **Advanced** — `examples/advanced/docker_buildx_multistage.py` — build and tag a multi-stage image and push it to the local registry *(planned)*
+- **Beginner** — `examples/beginner/docker_hello.py` — run `hello-world` from Python via the Docker SDK *(existing)*
+- **Intermediate** — `examples/intermediate/docker_compose_up.py` — bring an `infra/*/docker-compose.yml` up/down programmatically *(existing)*
+- **Advanced** — `examples/advanced/docker_buildx_multistage.py` — build and tag a multi-stage image and push it to the local registry *(existing)*
 
 ## Related specs
 - [postgres.md](postgres.md) — Postgres container is started via

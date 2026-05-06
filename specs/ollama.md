@@ -87,6 +87,14 @@ loaded into RAM.
   port 11434 beyond localhost without putting a reverse proxy with auth in
   front of it, since any caller can pull arbitrary models or generate.
 
+## Suggested example progression
+- **Beginner** — `examples/beginner/02_ollama_generate.py` — single-prompt
+  streaming generate against `/api/generate` *(existing)*
+- **Intermediate** — `examples/intermediate/02_ollama_chat_history.py` —
+  multi-turn chat with rolling history via `/api/chat` *(existing)*
+- **Advanced** — `examples/advanced/01_rag_pipeline.py` — Ollama embed +
+  generate over pgvector for retrieval-augmented answers *(existing)*
+
 ## Related specs
 - `specs/llama-cpp.md` — lower-level alternative; Ollama bundles llama.cpp
   underneath, so dropping down a layer gives finer control over quantization

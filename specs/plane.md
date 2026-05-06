@@ -77,9 +77,9 @@ Returns `HTTP/1.1 200 OK` (or a 3xx redirect to the workspace UI) once all nine 
 - **Port 4000, not 3000** — Plane is published on `localhost:4000` so it does not collide with Grafana on `localhost:3000`; CORS and `WEB_URL` are pinned to the same `http://localhost:4000`, so changing the host port also requires updating those env vars.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/plane_hello.py` — log in via the API and print the current user / workspace list *(planned)*
-- **Intermediate** — `examples/intermediate/plane_issue_crud.py` — create a project, add issues, move them through cycles and states *(planned)*
-- **Advanced** — `examples/advanced/plane_automation.py` — drive a full sprint workflow (cycle creation, bulk import, status updates) end-to-end via the REST API *(planned)*
+- **Beginner** — `examples/beginner/plane_hello.py` — log in via the API and print the current user / workspace list
+- **Intermediate** — `examples/intermediate/plane_issue_crud.py` — create a project, add issues with priorities, transition one through states, delete one
+- **Advanced** — `examples/advanced/plane_automation.py` — drive a full sprint workflow (cycle creation, bulk import, status updates, burnup) end-to-end via the REST API
 
 ## Related specs
 - [gitea.md](gitea.md) — local source-control side; Gitea webhooks can drive Plane issue updates as a GitHub-Issues-style integration.

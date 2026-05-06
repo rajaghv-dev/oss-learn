@@ -77,9 +77,9 @@ Returns a small JSON like `{"version":"1.x.y"}` once Gitea has finished its firs
 - **`--force` deletes the volume** — `down -v --remove-orphans` wipes both the app data and the dedicated Postgres, so any repos created during exploration are lost on rebuild.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/gitea_hello.py` — hit `/api/v1/version` and print the running Gitea version *(planned)*
-- **Intermediate** — `examples/intermediate/gitea_repo_crud.py` — create a repo via the API, push a commit, and list issues *(planned)*
-- **Advanced** — `examples/advanced/gitea_webhook_demo.py` — register a webhook and react to push events from a local listener *(planned)*
+- **Beginner** — `examples/beginner/gitea_hello.py` — hit `/api/v1/version` and print the running Gitea version
+- **Intermediate** — `examples/intermediate/gitea_repo_crud.py` — create a repo via the API, fetch it, list its issues, then delete it
+- **Advanced** — `examples/advanced/gitea_webhook_demo.py` — register a webhook and capture a test delivery on a local listener
 
 ## Related specs
 - [plane.md](plane.md) — wire Gitea webhooks (push, PR) into Plane issues to mirror a GitHub-Issues-style flow.

@@ -108,7 +108,7 @@ is up and the `osslearn` database is reachable.
   `osslearn` and prints the server version *(existing)*
 - **Intermediate** — `examples/intermediate/03_postgres_crud.py` —
   INSERT/SELECT/UPDATE against `demo.products` with parameterised
-  queries *(planned)*
+  queries *(existing)*
 - **Advanced** — `examples/advanced/01_rag_pipeline.py` — Ollama embed,
   pgvector store, Ollama generate; end-to-end RAG pipeline running on
   this Postgres instance *(existing)*

@@ -105,13 +105,13 @@ Grafana has booted and reached its sqlite metadata DB.
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/04_grafana_health.py` — hit
-  `/api/health` and print the version and DB status *(planned)*
+  `/api/health` and print the version and DB status *(existing)*
 - **Intermediate** — `examples/intermediate/04_grafana_create_dashboard.py`
   — POST a one-panel dashboard via the HTTP API using basic auth
-  *(planned)*
+  *(existing)*
 - **Advanced** — `examples/advanced/04_grafana_render_png.py` — render
   the `oss-overview` dashboard to PNG via the `/render` endpoint and
-  embed it in a generated report *(planned)*
+  embed it in a generated report *(existing)*
 
 ## Related specs
 

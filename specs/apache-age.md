@@ -110,12 +110,12 @@ Returns a single row containing `1`, proving AGE is installed, the
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/03_age_hello.py` — load AGE and run
-  `RETURN 1` against `demo_graph` to confirm the round trip *(planned)*
+  `RETURN 1` against `demo_graph` to confirm the round trip *(existing)*
 - **Intermediate** — `examples/intermediate/02_age_graph.py` — Cypher
   MATCH / MERGE over a small Person / KNOWS graph *(existing)*
 - **Advanced** — `examples/advanced/02_age_pathfinding.py` —
   variable-length paths and shortest-path-style traversals on a seeded
-  graph *(planned)*
+  graph *(existing)*
 
 ## Related specs
 

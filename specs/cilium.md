@@ -125,9 +125,9 @@ Prints the client versions of both CLIs, confirming the binaries are on
   per-flow drill-down lives in Hubble UI.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/cilium_status.py` — shell out to `cilium status` and parse the agent health summary *(planned)*
-- **Intermediate** — `examples/intermediate/cilium_network_policy.py` — apply a `CiliumNetworkPolicy` and assert reachability changes *(planned)*
-- **Advanced** — `examples/advanced/cilium_hubble_flows.py` — stream `hubble observe --output json` and aggregate L7 verdicts *(planned)*
+- **Beginner** — `examples/beginner/cilium_status.py` — shell out to `cilium status` and parse the agent health summary *(existing)*
+- **Intermediate** — `examples/intermediate/cilium_network_policy.py` — apply a `CiliumNetworkPolicy` and assert reachability changes *(existing)*
+- **Advanced** — `examples/advanced/cilium_hubble_flows.py` — stream `hubble observe --output json` and aggregate L7 verdicts *(existing)*
 
 ## References
 - Docs: https://docs.cilium.io/

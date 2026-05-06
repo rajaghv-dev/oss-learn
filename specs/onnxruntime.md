@@ -91,6 +91,15 @@ Prints the ORT version and a provider list containing `CPUExecutionProvider`.
   one session per worker rather than sharing a Python object across a
   multiprocessing pool, otherwise threadpool state corrupts.
 
+## Suggested example progression
+- **Beginner** — `examples/beginner/04_onnx_load_inspect.py` — load a `.onnx`
+  file and print inputs/outputs/opset/producer *(existing)*
+- **Intermediate** — `examples/intermediate/03_onnx_inference.py` — build a
+  linear ONNX graph in-memory and run it through CPU EP *(existing)*
+- **Advanced** — `examples/advanced/03_onnx_quantize_compare.py` —
+  dynamic-quantize an FP32 model to INT8 and benchmark latency
+  before/after *(existing)*
+
 ## Related specs
 - `specs/openvino.md` — Intel-tuned alternative engine that ingests the
   exact same ONNX graph; useful for side-by-side CPU benchmarking on the

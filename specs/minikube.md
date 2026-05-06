@@ -114,9 +114,9 @@ not complete successfully.
   installing any binaries.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/minikube_status.py` — call `minikube status` via subprocess and parse the JSON output *(planned)*
-- **Intermediate** — `examples/intermediate/minikube_deploy_app.py` — apply a Deployment and expose it with `minikube service` *(planned)*
-- **Advanced** — `examples/advanced/minikube_multinode_helm.py` — start a multi-node profile and install a Helm chart across it *(planned)*
+- **Beginner** — `examples/beginner/minikube_status.py` — call `minikube status` via subprocess and parse the JSON output *(existing)*
+- **Intermediate** — `examples/intermediate/minikube_deploy_app.py` — apply a Deployment and expose it with `minikube service` *(existing)*
+- **Advanced** — `examples/advanced/minikube_multinode_helm.py` — start a multi-node profile and install a Helm chart across it *(existing)*
 
 ## References
 - Docs: https://minikube.sigs.k8s.io/docs/

@@ -109,7 +109,7 @@ data are all live.
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/02_pgvector_hello.py` — insert a few
-  hand-coded vectors into a tiny table and read them back *(planned)*
+  hand-coded vectors into a tiny table and read them back *(existing)*
 - **Intermediate** — `examples/intermediate/01_pgvector_search.py` —
   cosine top-k query against `demo.products` *(existing)*
 - **Advanced** — `examples/advanced/01_rag_pipeline.py` — Ollama embed,

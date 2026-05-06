@@ -77,9 +77,9 @@ Returns a small JSON document describing the running NocoBase app (version, lang
 - **`--force` wipes the dedicated Postgres** — `down -v --remove-orphans` drops the volume, so any collections, records, and plugin state created during exploration are lost on rebuild.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/nocobase_hello.py` — call `/api/app:getInfo` and print the version + boot status *(planned)*
-- **Intermediate** — `examples/intermediate/nocobase_collection_crud.py` — create a collection, insert records via the REST API, and list them back *(planned)*
-- **Advanced** — `examples/advanced/nocobase_workflow.py` — define a collection plus a workflow that fires on insert and posts to a local webhook *(planned)*
+- **Beginner** — `examples/beginner/nocobase_hello.py` — call `/api/app:getInfo` and print the version + boot status
+- **Intermediate** — `examples/intermediate/nocobase_collection_crud.py` — create a `note` collection, insert 3 records, list, update, delete via the REST API
+- **Advanced** — `examples/advanced/nocobase_workflow.py` — define a collection plus a workflow that fires on insert and posts to a local webhook
 
 ## Related specs
 - [postgres.md](postgres.md) — the relational store NocoBase models on top of; useful for inspecting the tables and queries the platform generates from visual changes.

@@ -120,8 +120,8 @@ to the current user.
   inter-container traffic without exec'ing into a container.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/wireshark_pcap_read.py` — read a sample pcap with `tshark -r` and count packets *(planned)*
-- **Intermediate** — `examples/intermediate/wireshark_live_filter.py` — capture on `lo` with a BPF filter for `tcp port 5432` *(planned)*
+- **Beginner** — `examples/beginner/wireshark_pcap_read.py` — read a sample pcap with `tshark -r` and count packets *(existing)*
+- **Intermediate** — `examples/intermediate/wireshark_live_filter.py` — capture on `lo` with a BPF filter for `tcp port 5432` *(existing)*
 - **Advanced** — `examples/advanced/03_pyshark_capture.py` — loopback capture + protocol histogram *(existing)*
 
 ## References

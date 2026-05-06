@@ -99,13 +99,13 @@ reachable.
 ## Suggested example progression
 - **Beginner** — `examples/beginner/opensearch_hello.py` — connect to
   `localhost:9200`, create an index, index one document, fetch it back
-  *(planned)*
+  *(existing)*
 - **Intermediate** — `examples/intermediate/opensearch_search.py` —
   bulk-index sample docs, run `match` and `bool` queries, inspect BM25
-  scores *(planned)*
+  scores *(existing)*
 - **Advanced** — `examples/advanced/opensearch_aggregations.py` —
   date-histogram + terms aggregations over a logs-style index, compared
-  against equivalent Postgres `GROUP BY` *(planned)*
+  against equivalent Postgres `GROUP BY` *(existing)*
 
 ## Related specs
 - [grafana.md](grafana.md) — alternative visualization for time-series,

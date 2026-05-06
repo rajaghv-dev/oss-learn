@@ -104,10 +104,10 @@ value, confirming Prometheus is scraping and serving PromQL.
   `up` metric over the HTTP API and print healthy targets *(existing)*
 - **Intermediate** — `examples/intermediate/03_prometheus_range_query.py`
   — pull a 1-hour range of `probe_duration_seconds` and chart it with
-  matplotlib *(planned)*
+  matplotlib *(existing)*
 - **Advanced** — `examples/advanced/03_prometheus_recording_rule.py` —
   POST a recording rule via the lifecycle API and verify the new series
-  appears *(planned)*
+  appears *(existing)*
 
 ## Related specs
 

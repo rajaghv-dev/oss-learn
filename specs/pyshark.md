@@ -120,8 +120,8 @@ both the wheel install and the lxml runtime dep are healthy.
   live-capture script before pointing it at production-shaped traffic.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/pyshark_read_pcap.py` — open a fixture pcap and print summary lines *(planned)*
-- **Intermediate** — `examples/intermediate/pyshark_field_extract.py` — extract TCP `srcport`/`dstport` pairs from a capture *(planned)*
+- **Beginner** — `examples/beginner/pyshark_read_pcap.py` — open a fixture pcap and print summary lines *(existing)*
+- **Intermediate** — `examples/intermediate/pyshark_field_extract.py` — extract TCP `srcport`/`dstport` pairs from a capture *(existing)*
 - **Advanced** — `examples/advanced/03_pyshark_capture.py` — loopback capture + protocol histogram *(existing)*
 
 ## References

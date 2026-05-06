@@ -109,13 +109,13 @@ timeout — confirming both the exporter and the relabel chain work.
 
 - **Beginner** — `examples/beginner/06_blackbox_probe.py` — hit `/probe`
   for a known-good URL and parse `probe_success` and
-  `probe_duration_seconds` *(planned)*
+  `probe_duration_seconds` *(existing)*
 - **Intermediate** — `examples/intermediate/06_blackbox_custom_module.py`
   — add a TLS-cert-expiry probe module to `blackbox.yml`, reload, and
-  surface days-until-expiry *(planned)*
+  surface days-until-expiry *(existing)*
 - **Advanced** — `examples/advanced/06_blackbox_slo.py` — compute a
   1-hour availability SLO from `probe_success` via the Prometheus query
-  API and alert if it dips below 99% *(planned)*
+  API and alert if it dips below 99% *(existing)*
 
 ## Related specs
 

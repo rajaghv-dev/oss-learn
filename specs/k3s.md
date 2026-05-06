@@ -113,9 +113,9 @@ Should list one node in `Ready` status running the k3s-bundled kubelet.
   containerd store without pushing to a registry).
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/k3s_get_nodes.py` — list cluster nodes via the Python kubernetes client *(planned)*
-- **Intermediate** — `examples/intermediate/k3s_deploy_nginx.py` — apply a Deployment + Service and port-forward to it *(planned)*
-- **Advanced** — `examples/advanced/k3s_helm_chart.py` — install a Helm chart programmatically and watch rollout status *(planned)*
+- **Beginner** — `examples/beginner/k3s_get_nodes.py` — list cluster nodes via the Python kubernetes client *(existing)*
+- **Intermediate** — `examples/intermediate/k3s_deploy_nginx.py` — apply a Deployment + Service and port-forward to it *(existing)*
+- **Advanced** — `examples/advanced/k3s_helm_chart.py` — install a Helm chart programmatically and watch rollout status *(existing)*
 
 ## References
 - Docs: https://docs.k3s.io/

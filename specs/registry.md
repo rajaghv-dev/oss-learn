@@ -103,9 +103,9 @@ once `build-and-push.sh` has populated the registry.
   `setup/registry/build-and-push.sh` directly.
 
 ## Suggested example progression
-- **Beginner** — `examples/beginner/registry_catalog.py` — list repositories via the v2 API with `requests` *(planned)*
-- **Intermediate** — `examples/intermediate/registry_push_image.py` — build a small image, tag it `localhost:5000/demo/app:1`, push, then re-pull *(planned)*
-- **Advanced** — `examples/advanced/registry_gc_inspect.py` — walk the storage tree, inspect manifests/blobs, and report layer reuse across tags *(planned)*
+- **Beginner** — `examples/beginner/registry_catalog.py` — list repositories via the v2 API with `requests` *(existing)*
+- **Intermediate** — `examples/intermediate/registry_push_image.py` — build a small image, tag it `localhost:5000/demo/app:1`, push, then re-pull *(existing)*
+- **Advanced** — `examples/advanced/registry_gc_inspect.py` — walk the storage tree, inspect manifests/blobs, and report layer reuse across tags *(existing)*
 
 ## Related specs
 - [docker.md](docker.md) — Hard prerequisite: this registry runs as a

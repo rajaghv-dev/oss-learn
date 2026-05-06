@@ -91,6 +91,14 @@ load.
   consciously and only when you mean to expose it on the network, since
   there is no built-in auth and any caller can send arbitrary prompts.
 
+## Suggested example progression
+- **Beginner** — `examples/beginner/03_llama_cli_oneshot.py` — subprocess
+  wrapper around `llama-cli` for a single prompt *(existing)*
+- **Intermediate** — `examples/intermediate/04_llama_server_http.py` — start
+  `llama-server` and stream completions over HTTP *(existing)*
+- **Advanced** — `examples/advanced/02_llama_bench_quant_compare.py` — run
+  `llama-bench` across Q4/Q5/Q8 quants and chart tokens/sec *(existing)*
+
 ## Related specs
 - `specs/ollama.md` — higher-level wrapper around llama.cpp with a model
   registry, lifecycle daemon, and OpenAI-compatible HTTP surface; pick

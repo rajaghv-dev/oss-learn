@@ -92,6 +92,15 @@ Prints the OpenVINO version and a device list including at least `CPU`.
   Runtime to keep the comparison apples-to-apples, otherwise you may be
   comparing two different devices without realising it.
 
+## Suggested example progression
+- **Beginner** — `examples/beginner/05_openvino_add_model.py` — build the
+  Add graph and run it on the CPU device *(existing)*
+- **Intermediate** — `examples/intermediate/05_openvino_onnx_to_ir.py` — read
+  an ONNX file with `core.read_model`, save IR, reload, and infer *(existing)*
+- **Advanced** — `examples/advanced/04_openvino_vs_ort_bench.py` —
+  benchmark the same ONNX graph on OpenVINO CPU vs ONNX Runtime CPU and
+  report tokens or images per second *(existing)*
+
 ## Related specs
 - `specs/onnxruntime.md` — vendor-neutral alternative that runs the same
   ONNX graph on CPU without IR conversion; useful as a portability baseline
