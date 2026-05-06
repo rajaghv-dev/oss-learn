@@ -1,0 +1,122 @@
+# oss-learn Observability Stack
+#
+# Services:
+#   otel-collector      OTLP receiver → forwards traces/metrics
+#   prometheus          Scrapes all services, blackbox, state-exporter, kube-state-metrics
+#   grafana             Dashboards (admin / oss-admin)  http://localhost:3000
+#   blackbox-exporter   Probes /healthz on every service → probe_success metric
+#   setup-state-exporter  Exposes setup/state/*.done as Prometheus gauges  :9901
+#
+# Start:
+#   docker compose -f setup/observability/docker-compose.yml up -d
+# Dashboards: http://localhost:3000  (admin / oss-admin)
+# Prometheus: http://localhost:9090
+# OTLP gRPC:  localhost:4317
+
+services:
+
+  # ── OpenTelemetry Collector ─────────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    container_name: oss-otel-collector
+    command: ["--config=/etc/otel/config.yaml"]
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:13133/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Prometheus ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: oss-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Grafana ─────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: oss-grafana
+    user: root
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: oss-admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/oss-overview.json
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  # ── Blackbox Exporter ───────────────────────────────────────────────────────
+  # Probes /healthz on every oss-learn service — exposes probe_success, probe_duration,
+  # probe_http_status_code for each endpoint.
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: oss-blackbox
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9115/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Setup-State Exporter ────────────────────────────────────────────────────
+  # Reads setup/state/*.done stamps → exposes as oss_setup_step_done{step=...}
+  # and oss_service_installed{service=...} gauges.
+  setup-state-exporter:
+    image: python:3.11-slim
+    container_name: oss-state-exporter
+    command: ["python3", "/app/setup-state-exporter.py"]
+    ports:
+      - "9901:9901"
+    volumes:
+      - ./setup-state-exporter.py:/app/setup-state-exporter.py:ro
+      - ../../setup/state:/oss-state:ro
+    environment:
+      PORT: "9901"
+      OSS_STATE_DIR: "/oss-state"
+    restart: unless-stopped
+

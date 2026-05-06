@@ -1,0 +1,111 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    system: oss-learn
+
+scrape_configs:
+
+  # ── Prometheus self ───────────────────────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── OTel collector self-metrics ───────────────────────────────────────────
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  # ── Setup-state exporter ─────────────────────────────────────────────────
+  # Exposes oss_setup_step_done gauges from setup/state/*.done stamps.
+  - job_name: oss-setup-state
+    scrape_interval: 8s
+    static_configs:
+      - targets: ["setup-state-exporter:9901"]
+
+  # ── Blackbox: AI inference health ─────────────────────────────────────────
+  - job_name: oss-ai-healthz
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://host.docker.internal:9000/v1/config   # OpenVINO OVMS
+          - http://host.docker.internal:8001/health       # ONNX Runtime server
+          - http://host.docker.internal:11434/api/tags    # Ollama
+          - http://host.docker.internal:8080/health       # llama.cpp
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - source_labels: [instance]
+        regex: ".*:9000/.*"
+        replacement: openvino-ovms
+        target_label: service
+      - source_labels: [instance]
+        regex: ".*:8001/.*"
+        replacement: ort-server
+        target_label: service
+      - source_labels: [instance]
+        regex: ".*:11434/.*"
+        replacement: ollama
+        target_label: service
+      - source_labels: [instance]
+        regex: ".*:8080/.*"
+        replacement: llama-cpp
+        target_label: service
+
+  # ── Blackbox: DB TCP health ────────────────────────────────────────────────
+  - job_name: oss-db-tcp
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+          - host.docker.internal:5432   # PostgreSQL
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - source_labels: [instance]
+        regex: ".*:5432"
+        replacement: postgres
+        target_label: service
+
+  # ── OpenSearch health ──────────────────────────────────────────────────────
+  - job_name: oss-opensearch
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://host.docker.internal:9200/_cluster/health
+          - http://host.docker.internal:5601/api/status
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - source_labels: [instance]
+        regex: ".*:9200/.*"
+        replacement: opensearch
+        target_label: service
+      - source_labels: [instance]
+        regex: ".*:5601/.*"
+        replacement: opensearch-dashboards
+        target_label: service
+
+  # ── Ollama self-metrics ────────────────────────────────────────────────────
+  - job_name: ollama
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:11434"]
+    honor_labels: true

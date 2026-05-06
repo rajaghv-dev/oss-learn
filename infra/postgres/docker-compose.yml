@@ -1,0 +1,58 @@
+# PostgreSQL 16 + pgvector + Apache AGE
+# Image is built locally from setup/postgres/Dockerfile.
+#
+# First run builds the image (~5 min for AGE compilation):
+#   docker compose -f setup/postgres/docker-compose.yml up -d --build
+#
+# Subsequent runs are fast (image is cached):
+#   docker compose -f setup/postgres/docker-compose.yml up -d
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build args read from setup.sh's --age flag (v1.5.0-rc0 default,
+      # v1.6.0-rc0 opt-in). Must match the directory name inside age.tar.gz.
+      args:
+        AGE_TAG: ${AGE_TAG:-PG16/v1.5.0-rc0}
+        AGE_DIR: ${AGE_DIR:-age-PG16-v1.5.0-rc0}
+    image: oss-postgres:pg16-pgvector-age
+    container_name: oss-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/hostdata
+      - ./init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./extensions.sql:/docker-entrypoint-initdb.d/02_extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: oss-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@oss-learn.local
+      PGADMIN_DEFAULT_PASSWORD: oss-admin
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: [pgadmin]
+
+volumes:
+  pgdata:
+

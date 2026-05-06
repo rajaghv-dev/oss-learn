@@ -1,0 +1,161 @@
+name: oss-plane
+# Plane — self-hosted project management (Jira/Linear alternative)
+# Web: http://localhost:4000
+services:
+  plane-db:
+    image: postgres:15-alpine
+    container_name: oss-plane-db
+    environment:
+      POSTGRES_DB: plane
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: plane_secret
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plane"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  plane-redis:
+    image: redis:7-alpine
+    container_name: oss-plane-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  plane-minio:
+    image: minio/minio:latest
+    container_name: oss-plane-minio
+    command: server /export --console-address ":9090"
+    environment:
+      MINIO_ROOT_USER: plane
+      MINIO_ROOT_PASSWORD: plane_minio_secret
+    volumes:
+      - ./data/minio:/export
+    restart: unless-stopped
+
+  plane-api:
+    image: makeplane/plane-backend:stable
+    container_name: oss-plane-api
+    # Caddyfile inside makeplane/plane-proxy:stable references bare hostname
+    # `api` (not `plane-api`). Network alias makes both names resolve to this
+    # container so Caddy's reverse_proxy /api/* api:8000 works.
+    networks:
+      default:
+        aliases: [api]
+    command: ./bin/docker-entrypoint-api.sh
+    environment:
+      DATABASE_URL: "postgresql://plane:plane_secret@oss-plane-db/plane"
+      REDIS_URL: "redis://oss-plane-redis:6379/"
+      SECRET_KEY: "plane-oss-secret-key-change-for-production"
+      WEB_URL: "http://localhost:4000"
+      CORS_ALLOWED_ORIGINS: "http://localhost:4000"
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: plane
+      AWS_SECRET_ACCESS_KEY: plane_minio_secret
+      AWS_S3_ENDPOINT_URL: "http://oss-plane-minio:9000"
+      AWS_S3_BUCKET_NAME: uploads
+      FILE_SIZE_LIMIT: "5242880"
+      ENABLE_SIGNUP: "1"
+      DEFAULT_EMAIL: "admin@oss-learn.local"
+      DEFAULT_PASSWORD: "admin1234"
+    depends_on:
+      plane-db:
+        condition: service_healthy
+      plane-redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  plane-worker:
+    image: makeplane/plane-backend:stable
+    container_name: oss-plane-worker
+    command: ./bin/docker-entrypoint-worker.sh
+    environment:
+      DATABASE_URL: "postgresql://plane:plane_secret@oss-plane-db/plane"
+      REDIS_URL: "redis://oss-plane-redis:6379/"
+      SECRET_KEY: "plane-oss-secret-key-change-for-production"
+      AWS_ACCESS_KEY_ID: plane
+      AWS_SECRET_ACCESS_KEY: plane_minio_secret
+      AWS_S3_ENDPOINT_URL: "http://oss-plane-minio:9000"
+      AWS_S3_BUCKET_NAME: uploads
+    depends_on:
+      plane-api:
+        condition: service_started
+    restart: unless-stopped
+
+  plane-beat:
+    image: makeplane/plane-backend:stable
+    container_name: oss-plane-beat
+    command: ./bin/docker-entrypoint-beat.sh
+    environment:
+      DATABASE_URL: "postgresql://plane:plane_secret@oss-plane-db/plane"
+      REDIS_URL: "redis://oss-plane-redis:6379/"
+      SECRET_KEY: "plane-oss-secret-key-change-for-production"
+    depends_on:
+      plane-api:
+        condition: service_started
+    restart: unless-stopped
+
+  plane-web:
+    image: makeplane/plane-frontend:stable
+    container_name: oss-plane-web
+    networks:
+      default:
+        aliases: [web]
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:4000"
+      NEXT_PUBLIC_DEPLOY_URL: "http://localhost:4000/spaces/"
+    depends_on:
+      plane-api:
+        condition: service_started
+    restart: unless-stopped
+
+  plane-space:
+    image: makeplane/plane-space:stable
+    container_name: oss-plane-space
+    networks:
+      default:
+        aliases: [space]
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:4000"
+    depends_on:
+      plane-api:
+        condition: service_started
+    restart: unless-stopped
+
+  plane-proxy:
+    image: makeplane/plane-proxy:stable
+    container_name: oss-plane-proxy
+    ports:
+      - "4000:80"
+    environment:
+      # Required by the Caddyfile baked into makeplane/plane-proxy:stable.
+      # Missing any of these lets Caddy substitute empty strings into the
+      # config block — the bottom block becomes literally `{ ... }` with no
+      # site key, which Caddy parses as a global block out of order, dying
+      # with: "server block without any key is global configuration, and if
+      # used, it must be first" (and the proxy crash-loops).
+      SITE_ADDRESS: ":80"            # Caddy listens on :80 inside container
+      BUCKET_NAME: "uploads"          # MinIO bucket Caddy reverse-proxies to
+      FILE_SIZE_LIMIT: "5MB"          # Caddy request_body max_size
+      # Legacy env vars (older proxy images used these); harmless if ignored.
+      NGINX_PORT: "80"
+      API_BASE_URL: "http://oss-plane-api:8000"
+      WEB_BASE_URL: "http://oss-plane-web:3000"
+      SPACE_BASE_URL: "http://oss-plane-space:3000"
+    depends_on:
+      plane-web:
+        condition: service_started
+      plane-api:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 18

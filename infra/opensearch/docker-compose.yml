@@ -1,0 +1,60 @@
+name: oss-opensearch
+# OpenSearch — open-source search & analytics (Elasticsearch-compatible)
+# OpenSearch:            http://localhost:9200   (REST API, no auth in dev)
+# OpenSearch Dashboards: http://localhost:5601   (Kibana-compatible UI)
+#
+# NOTE: vm.max_map_count must be ≥ 262144 on the host.
+#   WSL2/Linux: sudo sysctl -w vm.max_map_count=262144
+#   (scripts/setup/opensearch.sh handles this automatically)
+#
+# Security is disabled (DISABLE_SECURITY_PLUGIN=true) for local dev.
+# To enable security: remove that env var and set OPENSEARCH_INITIAL_ADMIN_PASSWORD.
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2
+    container_name: oss-opensearch
+    environment:
+      cluster.name: oss-cluster
+      node.name: oss-os01
+      discovery.type: single-node
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      DISABLE_SECURITY_PLUGIN: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+      - "9600:9600"
+    volumes:
+      - ./data/opensearch:/usr/share/opensearch/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2
+    container_name: oss-opensearch-dashboards
+    ports:
+      - "5601:5601"
+    environment:
+      OPENSEARCH_HOSTS: '["http://oss-opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5601/api/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s

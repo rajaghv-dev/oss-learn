@@ -1,0 +1,22 @@
+# oss-learn test dependencies
+# Install with: pip install -r requirements.txt
+
+# Database
+psycopg2-binary>=2.9
+pgvector>=0.2.0
+
+# Testing
+pytest>=7.4
+pytest-asyncio>=0.21
+
+# AI frameworks (installed separately via setup scripts, listed here for dev convenience)
+onnxruntime>=1.18.0
+onnx>=1.14
+numpy>=1.24
+openvino>=2024.0.0
+
+# HTTP (for observability + Ollama tests)
+requests>=2.31
+
+# Code quality
+ruff>=0.4

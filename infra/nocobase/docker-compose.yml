@@ -1,0 +1,49 @@
+name: oss-nocobase
+# NocoBase — self-hosted low-code platform (database + forms + workflows)
+# Web: http://localhost:13000
+# Default admin: admin@nocobase.com / admin123
+services:
+  nocobase:
+    image: nocobase/nocobase:latest
+    container_name: oss-nocobase
+    environment:
+      DB_DIALECT: postgres
+      DB_HOST: oss-nocobase-db
+      DB_PORT: "5432"
+      DB_DATABASE: nocobase
+      DB_USER: nocobase
+      DB_PASSWORD: nocobase_secret
+      SECRET: nocobase-oss-secret-key
+      INIT_ROOT_EMAIL: admin@nocobase.com
+      INIT_ROOT_PASSWORD: admin1234
+      INIT_ROOT_NICKNAME: Admin
+    ports:
+      - "13000:80"
+    depends_on:
+      nocobase-db:
+        condition: service_healthy
+    volumes:
+      - ./data/storage:/app/nocobase/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/api/app:getInfo"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  nocobase-db:
+    image: postgres:16-alpine
+    container_name: oss-nocobase-db
+    environment:
+      POSTGRES_DB: nocobase
+      POSTGRES_USER: nocobase
+      POSTGRES_PASSWORD: nocobase_secret
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nocobase"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

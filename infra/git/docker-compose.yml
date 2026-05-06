@@ -1,0 +1,50 @@
+name: oss-git
+# Gitea — self-hosted Git service
+# Web:  http://localhost:3001   (first-run wizard sets admin account)
+# SSH:  ssh://localhost:222
+services:
+  gitea:
+    image: gitea/gitea:1
+    container_name: oss-gitea
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: oss-gitea-db:5432
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD: gitea_secret
+      GITEA__server__HTTP_PORT: "3000"
+      GITEA__server__SSH_PORT: "222"
+      GITEA__server__ROOT_URL: "http://localhost:3001/"
+      GITEA__service__DISABLE_REGISTRATION: "false"
+    volumes:
+      - ./data/gitea:/data
+    ports:
+      - "3001:3000"
+      - "222:22"
+    depends_on:
+      gitea-db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  gitea-db:
+    image: postgres:16-alpine
+    container_name: oss-gitea-db
+    environment:
+      POSTGRES_DB: gitea
+      POSTGRES_USER: gitea
+      POSTGRES_PASSWORD: gitea_secret
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitea"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
