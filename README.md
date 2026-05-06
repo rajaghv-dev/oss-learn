@@ -61,11 +61,16 @@ bash setup.sh --force              # redo all steps
 bash setup.sh --no-model           # skip LLM model downloads
 bash setup.sh --dry-run            # print actions only
 
-bash validate.sh --suite db        # run one validation suite
+bash validate.sh --suite db        # run one validation suite (db|ai|observability|opensearch|git|plane|nocobase|k8s)
 bash validate.sh --quick           # fast healthz-only check
 
-bash start.sh --ai                 # + AI inference containers
-bash start.sh --opensearch         # + OpenSearch
+bash start.sh --ai                 # + Ollama + AI inference containers
+bash start.sh --opensearch         # + OpenSearch + Dashboards
+bash start.sh --git                # + Gitea
+bash start.sh --plane              # + Plane
+bash start.sh --nocobase           # + NocoBase
+bash start.sh --k8s                # + k3s cluster (Linux/WSL2)
+bash start.sh --minikube           # + minikube cluster (cross-platform)
 
 bash cleanup.sh                    # remove containers, data, venv
 ```
@@ -80,12 +85,17 @@ setup.sh  →  validate.sh  →  start.sh
 
 After `bash start.sh`:
 
-| URL | Credentials |
-|-----|-------------|
-| http://localhost:3000 | admin / oss-admin |
-| http://localhost:9090 | — |
-| http://localhost:9200 | — (OpenSearch, optional) |
-| http://localhost:11434 | — (Ollama) |
+| URL | Service | Credentials |
+|-----|---------|-------------|
+| http://localhost:3000 | Grafana | admin / oss-admin |
+| http://localhost:9090 | Prometheus | — |
+| http://localhost:9115 | Blackbox Exporter | — |
+| http://localhost:11434 | Ollama (with `--ai`) | — |
+| http://localhost:9200 | OpenSearch (with `--opensearch`) | — |
+| http://localhost:5601 | OpenSearch Dashboards | — |
+| http://localhost:3001 | Gitea (with `--git`) | set on first visit |
+| http://localhost:4000 | Plane (with `--plane`) | admin@oss-learn.local / admin1234 |
+| http://localhost:13000 | NocoBase (with `--nocobase`) | set on first visit |
 
 ## Running tests
 
@@ -94,10 +104,17 @@ After `bash start.sh`:
 pytest tests/ -v
 
 # Specific suites
-pytest tests/db/ -v          # PostgreSQL + pgvector + AGE
-pytest tests/ai/ -v          # ONNX Runtime + Ollama
-pytest tests/observability/ -v  # Prometheus + Grafana
+pytest tests/db/ -v             # PostgreSQL + pgvector + AGE
+pytest tests/ai/ -v              # ONNX Runtime + Ollama
+pytest tests/observability/ -v   # Prometheus + Grafana + Blackbox + OTel
+pytest tests/git/ -v             # Gitea API
+pytest tests/plane/ -v           # Plane API
+pytest tests/nocobase/ -v        # NocoBase API
+pytest tests/k8s/ -v             # kubectl + cluster nodes
+pytest tests/wireshark/ -v       # tshark + pyshark
 ```
+
+Tests with no matching service running are skipped automatically.
 
 ## Platform notes
 
@@ -114,15 +131,23 @@ oss-learn/
 ├── setup.sh / validate.sh / start.sh / cleanup.sh
 ├── scripts/
 │   ├── common.sh          shared utilities
-│   ├── setup/             per-component install scripts
-│   ├── validate/          per-suite validation scripts
-│   └── start/             per-step startup scripts
+│   ├── setup/             per-component install scripts (20)
+│   ├── validate/          per-suite validation scripts (10)
+│   └── start/             per-step startup scripts (11)
 ├── infra/
-│   ├── postgres/          Dockerfile + docker-compose + init.sql
-│   ├── observability/     Prometheus + Grafana + OTel + Blackbox
-│   └── opensearch/        OpenSearch + Dashboards
+│   ├── postgres/          Dockerfile + docker-compose + init.sql (demo schema)
+│   ├── observability/     Prometheus + Grafana + OTel + Blackbox + state-exporter
+│   ├── opensearch/        OpenSearch + Dashboards
+│   ├── git/               Gitea
+│   ├── plane/             Plane project management
+│   └── nocobase/          NocoBase low-code platform
 └── tests/
-    ├── db/                PostgreSQL, pgvector, AGE tests with dummy data
-    ├── ai/                ONNX Runtime, Ollama tests
-    └── observability/     Prometheus, Grafana health tests
+    ├── db/                PostgreSQL, pgvector, AGE — dummy data CRUD + similarity search + Cypher
+    ├── ai/                ONNX Runtime (linear inference), Ollama (generate, embeddings)
+    ├── observability/     Prometheus PromQL, Grafana auth, Blackbox probes, OTel health
+    ├── git/               Gitea API health
+    ├── plane/             Plane API health
+    ├── nocobase/          NocoBase API health
+    ├── k8s/               kubectl version, cluster nodes, namespace CRUD
+    └── wireshark/         tshark CLI + pyshark loopback capture
 ```
