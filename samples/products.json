@@ -1,0 +1,8 @@
+[
+  {"sku": "BK-001", "name": "The Pragmatic Programmer", "category": "books", "price": 38.50, "stock": 12},
+  {"sku": "BK-002", "name": "Designing Data-Intensive Applications", "category": "books", "price": 52.00, "stock": 7},
+  {"sku": "EL-101", "name": "Mechanical Keyboard", "category": "electronics", "price": 129.00, "stock": 23},
+  {"sku": "EL-102", "name": "USB-C Hub", "category": "electronics", "price": 39.99, "stock": 41},
+  {"sku": "OF-201", "name": "Standing Desk", "category": "office", "price": 410.00, "stock": 4},
+  {"sku": "OF-202", "name": "Ergonomic Chair", "category": "office", "price": 285.00, "stock": 9}
+]

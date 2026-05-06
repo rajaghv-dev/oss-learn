@@ -1,0 +1,82 @@
+# ONNX Runtime
+
+> Cross-framework inference engine for `.onnx` graphs on CPU.
+
+| Field | Value |
+|-------|-------|
+| Category | AI / model inference |
+| Repo role | core |
+| Install script | scripts/setup/onnxruntime.sh |
+| Validate suite | scripts/validate/ai.sh |
+| Compose / config | — |
+| Default port(s) | — |
+| Default credentials | — |
+
+## What it is
+ONNX Runtime (ORT) is Microsoft's portable inference engine for models
+exported to the ONNX graph format from PyTorch, TensorFlow, scikit-learn, and
+other frameworks. The CPU build (`onnxruntime` on PyPI) loads `.onnx` files
+through `InferenceSession` and executes them via a C++ kernel set with
+optional graph-level optimizations (constant folding, operator fusion,
+layout transforms). It is library-only — no daemon, no port, just a Python
+import.
+
+## Why it's in oss-learn
+Gives the project a framework-agnostic way to run pretrained models (vision,
+classification, embeddings) without dragging in PyTorch or TensorFlow, and is
+the baseline against which OpenVINO is compared on the exact same CPU and
+graph.
+
+## How this repo wires it up
+- `scripts/setup/onnxruntime.sh` installs `onnxruntime` (CPU-only — never
+  `onnxruntime-gpu`) plus `numpy>=1.24` and `onnx` into the shared `venv/`.
+  The `--build` flag is a documented stub that points at the upstream cmake
+  flow rather than running it automatically.
+- Verification builds an in-memory `MatMul` graph via `onnx.helper`
+  (shapes `[2,3] @ [3,2] -> [2,2]`, opset 13), runs it through
+  `InferenceSession(..., providers=["CPUExecutionProvider"])`, and asserts
+  the result equals `numpy.A @ B` with `np.allclose`.
+- A second pytest-friendly probe re-runs the same MatMul and emits a JSON
+  `{import, providers, cpu_inference}` block consumed by the script's
+  PASS/FAIL summary; setup exits 1 if `cpu_inference` does not pass.
+- CPU capability flags (AVX2 / AVX-512 / VNNI) are read from `/proc/cpuinfo`
+  and logged so users can correlate INT8 quantization speedups with hardware.
+- Manifest at `setup/state/installs/onnxruntime.yaml` records package name,
+  version, and the `get_available_providers()` list at install time.
+- `scripts/validate/ai.sh` runs `setup/self-tests/onnxruntime/test_install.py`
+  via pytest and `setup/validate/onnxruntime.sh` as a bash counterpart.
+
+## Key concepts
+- **InferenceSession** — Loads a model (file path, bytes, or NumPy array) and
+  exposes `.run(output_names, input_dict)` as the single hot path.
+- **Execution Provider** — Backend the graph runs on; this repo uses
+  `CPUExecutionProvider` only, but the API allows DML/CUDA/CoreML/etc.
+- **Opset** — ONNX operator set version the model targets; mismatches between
+  exporter and runtime cause load-time `InvalidGraph` errors.
+- **Graph optimization level** — `ORT_DISABLE_ALL` ... `ORT_ENABLE_ALL`
+  controls fusion and constant folding before execution; higher levels
+  trade load time for steady-state throughput.
+- **Quantization (INT8 / VNNI)** — Reduces a model to int8 weights; CPUs with
+  AVX-VNNI accelerate this by roughly 2x over plain AVX2.
+- **Providers list** — `ort.get_available_providers()` returns the backends
+  compiled into the wheel; the CPU-only wheel reports just
+  `CPUExecutionProvider`.
+
+## Quick verification
+```bash
+venv/bin/python3 -c "import onnxruntime as ort; print(ort.__version__, ort.get_available_providers())"
+```
+Prints the ORT version and a provider list containing `CPUExecutionProvider`.
+
+## Suggested example progression
+- **Beginner** — `examples/beginner/04_onnx_load_inspect.py` — load a `.onnx`
+  file and print inputs/outputs/opset/producer *(planned)*
+- **Intermediate** — `examples/intermediate/03_onnx_inference.py` — build a
+  linear ONNX graph in-memory and run it through CPU EP *(existing)*
+- **Advanced** — `examples/advanced/03_onnx_quantize_compare.py` —
+  dynamic-quantize an FP32 model to INT8 and benchmark latency
+  before/after *(planned)*
+
+## References
+- Docs: https://onnxruntime.ai/docs/
+- Source: https://github.com/microsoft/onnxruntime

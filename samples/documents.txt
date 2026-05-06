@@ -1,0 +1,10 @@
+PostgreSQL is a powerful, open-source object-relational database system with strong reputation for reliability and feature robustness.
+pgvector adds a vector data type and similarity search operators to PostgreSQL, enabling embedding-based retrieval inside SQL.
+Apache AGE is a PostgreSQL extension that lets you run openCypher graph queries on relational tables.
+Prometheus is a time-series database and monitoring system that scrapes metrics from instrumented targets over HTTP.
+Grafana is an open-source visualization tool that turns Prometheus, Loki, and Tempo data into dashboards.
+OpenTelemetry is a vendor-neutral standard for collecting traces, metrics, and logs from applications.
+Ollama runs large language models locally and exposes a simple HTTP API for generation and embeddings.
+ONNX Runtime executes models trained in PyTorch, TensorFlow, or scikit-learn through a single optimized runtime.
+OpenSearch is a distributed search and analytics engine forked from Elasticsearch with a permissive Apache 2.0 license.
+Wireshark and its CLI counterpart tshark capture and decode network packets at the protocol level for inspection.
