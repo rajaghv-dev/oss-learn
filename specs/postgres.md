@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Database |
+| Category | database |
 | Repo role | core |
 | Install script | scripts/setup/postgres.sh |
 | Validate suite | scripts/validate/db.sh |
 | Compose / config | infra/postgres/docker-compose.yml |
 | Default port(s) | 5432 (postgres), 5050 (pgAdmin, profile-gated) |
 | Default credentials | postgres / postgres (DB: osslearn); demo / demo_dev (app role) |
+| Resource footprint | ~250 MB RAM idle, ~600 MB image |
 
 ## What it is
 
@@ -68,6 +69,39 @@ docker exec -it oss-postgres psql -U postgres -d osslearn -c "SELECT version();"
 Prints a single row with `PostgreSQL 16.x ...`, confirming the container
 is up and the `osslearn` database is reachable.
 
+## Common pitfalls
+
+- **Port 5432 already bound on the host** — A native `postgresql`
+  service or another container with `postgres`/`pg` in its name will
+  block the bind. The setup script's STEP 1 detects this and warns;
+  either stop the offending process (`docker stop <name>`), re-run
+  `scripts/setup/postgres.sh --force` to auto-remove conflicting
+  containers, or change `POSTGRES_PORT` in `.env` and update the
+  compose port mapping.
+- **First-boot timing** — The mounted `init.sql` and `extensions.sql`
+  scripts only run on the *first* container start, when `pgdata` is
+  empty. Editing them after that has no effect until you wipe the
+  named volume (`docker compose down -v`) or re-run setup with
+  `--force`. The `IF NOT EXISTS` guards everywhere mean re-running by
+  hand against an existing DB is also safe.
+- **`--local` install path is unimplemented** — Passing `--local` to
+  `scripts/setup/postgres.sh` logs an explicit "not yet implemented"
+  message and exits non-zero. Use the default Docker path; the local
+  branch is documented inline as a future enhancement.
+- **Credentials are demo defaults** — `postgres/postgres` and
+  `demo/demo_dev` are baked into `init.sql` and `.env.example`; rotate
+  them before exposing the port outside localhost. The `demo` role is
+  scoped to the `demo` schema so it's safe for example code, but it's
+  not safe for shared environments.
+- **AGE build is slow on first boot** — The image build compiles AGE
+  from source against `postgresql-server-dev-16` (~5 min on WSL2);
+  subsequent `docker compose up` calls reuse the cached
+  `oss-postgres:pg16-pgvector-age` image and start in seconds.
+- **Docker group not yet active** — Newly added `docker` group members
+  may hit EACCES on `/var/run/docker.sock`; the setup script
+  re-execs itself under `sg docker` automatically, but a fresh shell
+  (`newgrp docker`) is the cleanest fix.
+
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/01_postgres_hello.py` — connects to
@@ -79,7 +113,18 @@ is up and the `osslearn` database is reachable.
   pgvector store, Ollama generate; end-to-end RAG pipeline running on
   this Postgres instance *(existing)*
 
+## Related specs
+
+- [pgvector](pgvector.md) — vector-search extension bundled in the same
+  image and database; provides the `vector` type and ANN indexes used
+  by the RAG example.
+- [apache-age](apache-age.md) — sibling property-graph extension that
+  shares this server, the `osslearn` database, and the `5432` port.
+- [ollama](ollama.md) — provides embeddings and generation for the
+  advanced RAG example that runs against this Postgres instance.
+
 ## References
 
 - Docs: https://www.postgresql.org/docs/16/index.html
 - Source: https://github.com/postgres/postgres
+- Docker image (pgvector base): https://hub.docker.com/r/pgvector/pgvector

@@ -11,6 +11,7 @@
 | Compose / config | — (kubeconfig at `~/.kube/config`, server config at `/etc/rancher/k3s/k3s.yaml`) |
 | Default port(s) | 6443 (kube-apiserver) |
 | Default credentials | — (kubeconfig token written by installer) |
+| Resource footprint | ~600 MB RAM idle (single node), ~50 MB binary, persistent state in /var/lib/rancher/k3s |
 
 ## What it is
 k3s is a CNCF-certified Kubernetes distribution packaged as a single ~50 MB
@@ -70,6 +71,47 @@ kubectl get nodes
 ```
 Should list one node in `Ready` status running the k3s-bundled kubelet.
 
+## Common pitfalls
+- **WSL2 snapshotter** — k3s must run with `--snapshotter=native` on WSL2
+  because the WSL2 kernel does not ship the `overlayfs` module that
+  containerd defaults to. Without this flag containerd refuses to start, the
+  kubelet never registers, and the node sits in `NotReady` indefinitely.
+- **No CNI by default** — flannel, the built-in NetworkPolicy controller and
+  Traefik are all disabled by `INSTALL_K3S_EXEC` so Cilium and ingress-nginx
+  can own CNI and ingress respectively. Skipping the follow-up Cilium install
+  leaves every pod stuck in `ContainerCreating` because there is no pod
+  network at all.
+- **Linux-only installer** — the install script refuses to run on non-Linux
+  hosts (`uname -s != Linux`) and exits before touching anything. macOS users
+  must use `scripts/setup/minikube.sh` instead; there is no native macOS
+  build of k3s.
+- **WSL2 without systemd** — k3s is started as a backgrounded
+  `sudo k3s server` process that does **not** survive `wsl --shutdown` or a
+  reboot of the WSL distro. Restart it manually each session or enable
+  systemd via `/etc/wsl.conf` (`[boot]\nsystemd=true`) to get a real service.
+- **kubeconfig permissions** — `/etc/rancher/k3s/k3s.yaml` is written mode
+  600 by default; the installer forces `--write-kubeconfig-mode=644` so the
+  script can copy it into `~/.kube/config` without a second sudo. Custom
+  installs that omit this flag will trip up downstream `kubectl` calls.
+
+## Related specs
+- `specs/cilium.md` — the CNI that replaces flannel after k3s comes up. The
+  k3s install intentionally leaves the pod network blank
+  (`--flannel-backend=none`) so Cilium can take over both pod-to-pod
+  networking and NetworkPolicy enforcement, and bring along its eBPF-based
+  observability (Hubble) without fighting another CNI for ownership.
+- `specs/minikube.md` — cross-platform alternative for macOS or non-WSL
+  hosts. Both share the same `kubectl`, the same Helm install path and the
+  same validate suite (`scripts/validate/k8s.sh`), so workloads developed
+  on one cluster type drop into the other unchanged. Pick k3s when the host
+  is Linux/WSL2 and you want minimal overhead; pick minikube when you need
+  upstream-exact Kubernetes binaries or macOS support.
+- `specs/docker.md` — k3s vendors its own containerd inside the binary, so
+  the cluster does not depend on the Docker daemon at runtime. Docker is
+  still expected on the host for image-build workflows (`docker build`
+  followed by `k3s ctr image import` to side-load images into the
+  containerd store without pushing to a registry).
+
 ## Suggested example progression
 - **Beginner** — `examples/beginner/k3s_get_nodes.py` — list cluster nodes via the Python kubernetes client *(planned)*
 - **Intermediate** — `examples/intermediate/k3s_deploy_nginx.py` — apply a Deployment + Service and port-forward to it *(planned)*
@@ -78,3 +120,11 @@ Should list one node in `Ready` status running the k3s-bundled kubelet.
 ## References
 - Docs: https://docs.k3s.io/
 - Source: https://github.com/k3s-io/k3s
+- Helm docs: https://helm.sh/docs/
+- kubectl cheat sheet: https://kubernetes.io/docs/reference/kubectl/cheatsheet/
+- Kubernetes basics tutorial: https://kubernetes.io/docs/tutorials/kubernetes-basics/
+- k3s installer flags reference: https://docs.k3s.io/installation/configuration
+- containerd snapshotter overview: https://github.com/containerd/containerd/blob/main/docs/snapshotters/README.md
+- WSL2 systemd setup: https://learn.microsoft.com/en-us/windows/wsl/systemd
+- CNCF k3s landscape entry: https://landscape.cncf.io/?selected=k-3s
+- k3s architecture diagram: https://docs.k3s.io/architecture

@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Observability / Metrics |
+| Category | observability / metrics |
 | Repo role | core |
 | Install script | scripts/setup/observability.sh |
 | Validate suite | scripts/validate/observability.sh |
 | Compose / config | infra/observability/docker-compose.yml, infra/observability/prometheus.yml |
 | Default port(s) | 9090 (HTTP UI + API) |
 | Default credentials | — |
+| Resource footprint | ~150 MB RAM idle, ~250 MB image, TSDB grows ~1 KB/series/day |
 
 ## What it is
 
@@ -71,6 +72,32 @@ curl -s 'http://localhost:9090/api/v1/query?query=up' | head -c 400
 Returns a JSON list of every scrape target with a `1` (up) or `0` (down)
 value, confirming Prometheus is scraping and serving PromQL.
 
+## Common pitfalls
+
+- The bind-mounted `infra/observability/data/prometheus` directory is
+  created by the docker daemon as `root:root` on first `docker compose
+  up`; Prometheus runs as uid 65534 (nobody) and panics on
+  `/prometheus/queries.active` unless the setup script (or a manual
+  `sudo chown -R 65534:65534 infra/observability/data/prometheus`) fixes
+  the ownership before the container starts.
+- The setup script's YAML pre-parse step (PyYAML when available, a
+  grep-based shape check otherwise) trips on tab characters in
+  `prometheus.yml` — keep the file consistently 2-space-indented or the
+  container will crashloop with no clear error visible in compose's logs.
+- `--storage.tsdb.retention.time=30d` is enforced by wall clock, not by
+  disk size; a runaway label cardinality from a misconfigured exporter
+  can fill the bind mount well before the 30-day window elapses, and
+  Prometheus will start failing scrapes silently.
+- The lifecycle API (`/-/reload`, `/-/ready`, `/-/healthy`) is only
+  available because the compose command line passes
+  `--web.enable-lifecycle`; remove that flag and `curl -XPOST
+  http://localhost:9090/-/reload` silently 404s instead of reloading.
+- Scrape jobs that point at `host.docker.internal` rely on the
+  blackbox-exporter's `extra_hosts: ["host.docker.internal:host-gateway"]`
+  on Linux — Prometheus itself never resolves that name directly, so
+  moving the same job to a non-blackbox target requires explicit
+  `extra_hosts` on the Prometheus service too.
+
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/03_prometheus_query.py` — query the
@@ -82,7 +109,22 @@ value, confirming Prometheus is scraping and serving PromQL.
   POST a recording rule via the lifecycle API and verify the new series
   appears *(planned)*
 
+## Related specs
+
+- [grafana.md](grafana.md) — the visualizer; its provisioning YAML
+  hard-codes `http://prometheus:9090` as the only data source, so every
+  panel in `oss-overview.json` reads from this Prometheus instance.
+- [otel-collector.md](otel-collector.md) — the sender; the collector's
+  `prometheus` exporter on `:8889` and self-metrics on `:8888` are both
+  scraped by jobs in `prometheus.yml`, which is how OTLP-emitted samples
+  end up in this TSDB.
+- [blackbox-exporter.md](blackbox-exporter.md) — the probe runner;
+  Prometheus drives it via the relabel-sandwich pattern in jobs
+  `oss-ai-healthz`, `oss-db-tcp`, and `oss-opensearch`, and stores the
+  resulting `probe_success` and `probe_duration_seconds` series.
+
 ## References
 
 - Docs: https://prometheus.io/docs/introduction/overview/
 - Source: https://github.com/prometheus/prometheus
+- Configuration cheat sheet: https://prometheus.io/docs/prometheus/latest/configuration/configuration/

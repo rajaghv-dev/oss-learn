@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Observability / Telemetry pipeline |
+| Category | observability / telemetry pipeline |
 | Repo role | core |
 | Install script | scripts/setup/observability.sh |
 | Validate suite | scripts/validate/observability.sh |
 | Compose / config | infra/observability/docker-compose.yml, infra/observability/otel-collector-config.yaml |
 | Default port(s) | 4317 (OTLP gRPC), 4318 (OTLP HTTP), 8888 (self-metrics), 8889 (Prometheus exporter), 13133 (health) |
 | Default credentials | — |
+| Resource footprint | ~80 MB RAM, ~200 MB image (contrib distribution) |
 
 ## What it is
 
@@ -75,6 +76,32 @@ curl -s http://localhost:13133/healthz
 Returns `{"status":"Server available", ...}` when the collector's
 pipelines are loaded and listening on `:4317` / `:4318`.
 
+## Common pitfalls
+
+- The collector's compose entry sets
+  `depends_on: prometheus { condition: service_healthy }`; if Prometheus
+  fails its healthcheck (e.g. permission panic on the bind mount), the
+  collector never even starts and the failure looks like a missing
+  service rather than a downstream Prometheus problem — always check
+  Prometheus first when the collector is missing.
+- The OTLP/HTTP paths are `/v1/traces`, `/v1/metrics`, and `/v1/logs`
+  (all plural); `/v1/trace` or `/v1/metric` returns 404 and is a common
+  copy-paste error from older SDK examples and tutorials.
+- Port `:8889` is the *output* `prometheus` exporter scraped by
+  Prometheus, while port `:8888` is the collector's *own* self-metrics
+  (queue lengths, dropped spans, etc.). Mixing them up means scraping
+  pipeline data with the wrong job and seeing zero series under the
+  `oss_*` namespace.
+- The setup script does a YAML pre-parse (PyYAML if available, a
+  grep-based shape check otherwise); a typo in
+  `otel-collector-config.yaml` fails fast there rather than crashlooping
+  the container with a generic compose error.
+- The bundled config sends traces and logs to the `debug` exporter only
+  (stdout); spans never leave the collector unless you wire up a real
+  exporter like `otlphttp` or `jaeger`. The `prometheus` exporter is
+  attached only to the `metrics` pipeline, so traces emitted via OTLP
+  show up in `docker logs oss-otel-collector` rather than in any UI.
+
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/05_otel_health.py` — hit
@@ -85,7 +112,20 @@ pipelines are loaded and listening on `:4317` / `:4318`.
 - **Advanced** — `examples/advanced/02_otel_emit.py` — emit OTLP traces
   and metrics from Python over gRPC `:4317` *(existing)*
 
+## Related specs
+
+- [prometheus.md](prometheus.md) — downstream exporter; the collector's
+  `:8889` page is what Prometheus scrapes for every OTLP-derived metric,
+  and the collector's own `:8888` self-metrics surface as the
+  `otel-collector` job in `prometheus.yml`.
+- [grafana.md](grafana.md) — visualization layer on top of Prometheus,
+  so OTLP-emitted metrics flow OTLP → collector → Prometheus → Grafana
+  without any extra wiring beyond the bundled provisioning; the same
+  `oss-overview` dashboard that shows scrape health also surfaces these
+  pushed metrics under the `oss_*` namespace.
+
 ## References
 
 - Docs: https://opentelemetry.io/docs/collector/
 - Source: https://github.com/open-telemetry/opentelemetry-collector-contrib
+- OTLP specification: https://opentelemetry.io/docs/specs/otlp/

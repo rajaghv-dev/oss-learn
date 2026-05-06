@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Project management |
+| Category | project management |
 | Repo role | optional |
 | Install script | scripts/setup/plane.sh |
-| Validate suite | scripts/validate/plane.sh |
+| Validate suite | `scripts/validate/plane.sh` |
 | Compose / config | infra/plane/docker-compose.yml |
 | Default port(s) | 4000 (proxy / web entrypoint) |
 | Default credentials | admin@oss-learn.local / admin1234 |
+| Resource footprint | ~1.2 GB RAM (web + api + worker + redis + postgres + minio), ~2 GB images |
 
 ## What it is
 Plane is an open-source project management platform with workspaces,
@@ -68,10 +69,21 @@ curl -sI http://localhost:4000/ | head -n1
 ```
 Returns `HTTP/1.1 200 OK` (or a 3xx redirect to the workspace UI) once all nine containers are healthy and Caddy is serving; on a cold start it can take several minutes for the first 200 to appear.
 
+## Common pitfalls
+- **Heaviest stack in the repo** — nine containers share ~1.2 GB RAM at idle; on slower laptops the Django API or Celery worker can OOM-kill before warmup completes, so close other heavy apps before `--force` rebuilds.
+- **600 s readiness window is real** — first-boot DB migrations + MinIO bucket creation + Next.js asset compile routinely take 4–8 minutes; the setup script logs container health every 30 s so you can tell "still warming" apart from "broken".
+- **Proxy crash-loop ≠ slow boot** — if `oss-plane-proxy` restarts more than twice the script fails fast: the baked-in Caddyfile needs `SITE_ADDRESS`, `BUCKET_NAME`, `FILE_SIZE_LIMIT` env vars plus `api`/`web`/`space` network aliases, and missing any of those produces an unkeyed global block crash.
+- **Admin user is seeded via env, not a wizard** — `DEFAULT_EMAIL` / `DEFAULT_PASSWORD` create the admin on first boot; running `--force` (which does `down -v --remove-orphans`) re-seeds them, so a fresh stack always lands back at `admin@oss-learn.local` / `admin1234`.
+- **Port 4000, not 3000** — Plane is published on `localhost:4000` so it does not collide with Grafana on `localhost:3000`; CORS and `WEB_URL` are pinned to the same `http://localhost:4000`, so changing the host port also requires updating those env vars.
+
 ## Suggested example progression
 - **Beginner** — `examples/beginner/plane_hello.py` — log in via the API and print the current user / workspace list *(planned)*
 - **Intermediate** — `examples/intermediate/plane_issue_crud.py` — create a project, add issues, move them through cycles and states *(planned)*
 - **Advanced** — `examples/advanced/plane_automation.py` — drive a full sprint workflow (cycle creation, bulk import, status updates) end-to-end via the REST API *(planned)*
+
+## Related specs
+- [gitea.md](gitea.md) — local source-control side; Gitea webhooks can drive Plane issue updates as a GitHub-Issues-style integration.
+- [nocobase.md](nocobase.md) — companion low-code app; Plane's REST API can feed NocoBase collections (or vice-versa) for custom dashboards.
 
 ## References
 - Docs: https://docs.plane.so/

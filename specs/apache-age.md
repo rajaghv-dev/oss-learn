@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Database / Graph |
+| Category | database / graph |
 | Repo role | core |
 | Install script | scripts/setup/postgres.sh |
 | Validate suite | scripts/validate/db.sh |
 | Compose / config | infra/postgres/docker-compose.yml (extension enabled by infra/postgres/init.sql) |
 | Default port(s) | 5432 (shared with PostgreSQL) |
 | Default credentials | postgres / postgres (DB: osslearn, graph: demo_graph) |
+| Resource footprint | shared with postgres, +~10 MB extension |
 
 ## What it is
 
@@ -72,6 +73,40 @@ docker exec -it oss-postgres psql -U postgres -d osslearn -c "LOAD 'age'; SET se
 Returns a single row containing `1`, proving AGE is installed, the
 `demo_graph` exists, and the session can execute Cypher.
 
+## Common pitfalls
+
+- **`LOAD 'age'` is per-session** — Every new connection must run
+  `LOAD 'age'; SET search_path = ag_catalog, "$user", public;` before
+  Cypher works; this is the most common "function `cypher` does not
+  exist" gotcha. Connection-pooling clients should configure this as
+  the connection-init query so it is replayed on every checkout.
+- **Only `-rc0` tags exist for PG16** — Apache AGE upstream does not
+  ship a non-rc release for PG16; the setup script defaults to
+  `PG16/v1.5.0-rc0` and accepts `--age v1.6.0-rc0` opt-in. Any other
+  tag will fail at `git clone` time during STEP 2 of the setup script.
+- **WSL2 SSL / rate-limit issues** — The Dockerfile cannot reliably
+  `git clone` from inside WSL2 builds, which is why
+  `scripts/setup/postgres.sh` clones AGE on the host and packs it into
+  `infra/postgres/deps/age.tar.gz`. Deleting that tarball forces a
+  re-clone on the next setup run.
+- **First-boot only graph creation** —
+  `ag_catalog.create_graph('demo_graph')` runs from `init.sql` against
+  an empty `pgdata` volume; if you wipe the database manually, re-run
+  `scripts/setup/postgres.sh --force` or call `create_graph` yourself
+  before issuing Cypher.
+- **`agtype` results need declaring** — Cypher returned via SQL must
+  spell out the column types in the `AS (...)` clause (e.g.
+  `AS (n agtype)`), otherwise Postgres errors with "a column
+  definition list is required for functions returning record".
+- **`--local` install path is unimplemented** — Native AGE installs
+  are documented in `scripts/setup/postgres.sh` but the `--local`
+  branch exits with "not yet implemented"; use Docker mode (the
+  default).
+- **Image rebuild after `--age` change** — Switching between
+  `v1.5.0-rc0` and `v1.6.0-rc0` requires rebuilding the
+  `oss-postgres` image; pass `--force` so the existing container is
+  torn down before the rebuild.
+
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/03_age_hello.py` — load AGE and run
@@ -82,7 +117,17 @@ Returns a single row containing `1`, proving AGE is installed, the
   variable-length paths and shortest-path-style traversals on a seeded
   graph *(planned)*
 
+## Related specs
+
+- [postgres](postgres.md) — base server that hosts this extension, the
+  `osslearn` database, and the `demo_graph`; AGE shares its
+  transaction model and connection pool.
+- [pgvector](pgvector.md) — sibling extension compiled into the same
+  image, sharing the `osslearn` database so graph traversals and
+  vector search can run in one query.
+
 ## References
 
 - Docs: https://age.apache.org/age-manual/master/index.html
 - Source: https://github.com/apache/age
+- Docker image (pgvector base for AGE build): https://hub.docker.com/r/pgvector/pgvector

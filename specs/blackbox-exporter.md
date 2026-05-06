@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Observability / Synthetic monitoring |
+| Category | observability / synthetic monitoring |
 | Repo role | core |
 | Install script | scripts/setup/observability.sh |
 | Validate suite | scripts/validate/observability.sh |
 | Compose / config | infra/observability/docker-compose.yml, infra/observability/blackbox.yml |
 | Default port(s) | 9115 (HTTP — `/probe`, `/metrics`, `/-/healthy`) |
 | Default credentials | — |
+| Resource footprint | ~20 MB RAM, ~25 MB image |
 
 ## What it is
 
@@ -76,6 +77,34 @@ curl -s 'http://localhost:9115/probe?target=http://localhost:9090/-/ready&module
 Prints `probe_success 1` if the target responded 200 within the module's
 timeout — confirming both the exporter and the relabel chain work.
 
+## Common pitfalls
+
+- Probe *targets* are configured in `prometheus.yml` via the relabel
+  sandwich (`__address__ → __param_target → blackbox-exporter:9115`),
+  **not** in `blackbox.yml` itself. `blackbox.yml` only defines the
+  *modules* (how to probe); editing it to add a hostname does nothing
+  unless a matching `static_configs` entry is also added on the
+  Prometheus side.
+- ICMP probes need the container to hold the `NET_RAW` Linux capability;
+  the bundled compose file does not grant it, so adding an `icmp` module
+  to `blackbox.yml` will fail at probe time until `cap_add: [NET_RAW]`
+  (or an equivalent sysctl tweak) is added to the `blackbox-exporter`
+  service.
+- On Linux, `host.docker.internal` only resolves inside the container
+  because of `extra_hosts: ["host.docker.internal:host-gateway"]` in the
+  compose file; remove that line and every probe targeting the host
+  immediately starts reporting `probe_success 0`, even though the host
+  service itself is healthy.
+- The `http_healthz` module's body regex (`"status"\s*:\s*"ok"`) is
+  JSON-shaped; pointing it at a service whose health endpoint returns
+  plain text or a different JSON schema reports `probe_success 0` even
+  though the service is fine — fall back to the `http_2xx` module for
+  those.
+- The exporter does not cache probe results; every Prometheus scrape
+  triggers a fresh probe, so a global 15 s `scrape_interval` against a
+  slow target adds real network load — tune `scrape_interval` per job
+  rather than only globally.
+
 ## Suggested example progression
 
 - **Beginner** — `examples/beginner/06_blackbox_probe.py` — hit `/probe`
@@ -88,7 +117,17 @@ timeout — confirming both the exporter and the relabel chain work.
   1-hour availability SLO from `probe_success` via the Prometheus query
   API and alert if it dips below 99% *(planned)*
 
+## Related specs
+
+- [prometheus.md](prometheus.md) — scrapes the `/probe` endpoint via the
+  `oss-ai-healthz`, `oss-db-tcp`, and `oss-opensearch` jobs in
+  `prometheus.yml`; without Prometheus driving it, no probe ever runs
+  and the `probe_success` / `probe_duration_seconds` series simply do
+  not exist. The relabel sandwich there is what wires real targets to
+  this exporter.
+
 ## References
 
 - Docs: https://github.com/prometheus/blackbox_exporter/blob/master/README.md
 - Source: https://github.com/prometheus/blackbox_exporter
+- Configuration cheat sheet: https://github.com/prometheus/blackbox_exporter/blob/master/CONFIGURATION.md

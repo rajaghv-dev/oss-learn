@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | AI / model inference |
+| Category | ai / model inference |
 | Repo role | core |
 | Install script | scripts/setup/onnxruntime.sh |
 | Validate suite | scripts/validate/ai.sh |
 | Compose / config | — |
 | Default port(s) | — |
 | Default credentials | — |
+| Resource footprint | pip wheel ~12 MB on disk; model RAM = ONNX file size + activations (typically 1.5–3x file size at peak) |
 
 ## What it is
 ONNX Runtime (ORT) is Microsoft's portable inference engine for models
@@ -68,15 +69,35 @@ venv/bin/python3 -c "import onnxruntime as ort; print(ort.__version__, ort.get_a
 ```
 Prints the ORT version and a provider list containing `CPUExecutionProvider`.
 
-## Suggested example progression
-- **Beginner** — `examples/beginner/04_onnx_load_inspect.py` — load a `.onnx`
-  file and print inputs/outputs/opset/producer *(planned)*
-- **Intermediate** — `examples/intermediate/03_onnx_inference.py` — build a
-  linear ONNX graph in-memory and run it through CPU EP *(existing)*
-- **Advanced** — `examples/advanced/03_onnx_quantize_compare.py` —
-  dynamic-quantize an FP32 model to INT8 and benchmark latency
-  before/after *(planned)*
+## Common pitfalls
+- Opset mismatch between `torch.onnx.export(..., opset_version=N)` and the
+  ORT wheel raises `InvalidGraph` at load time — pin the same opset on both
+  sides (this repo's verification graph in `setup/self-tests/onnxruntime/`
+  uses opset 13, which is supported by every ORT release oss-learn targets)
+  and bump them together when upgrading.
+- The CPU-only `onnxruntime` wheel will not use a GPU even if CUDA or
+  ROCm is present on the host; you must explicitly install
+  `onnxruntime-gpu` (which oss-learn does *not* ship) and request
+  `CUDAExecutionProvider` in the providers list at session construction.
+- Installing both `onnxruntime` and `onnxruntime-gpu` in the same venv
+  shadows one another silently depending on import order — pick exactly
+  one per venv and verify with `ort.get_available_providers()` after
+  install.
+- Dynamic quantization shrinks weights to int8 but the inference speedup
+  only materializes on CPUs with AVX-VNNI (Cascade Lake / Ice Lake and
+  newer); older Skylake-class chips show little or no gain and can even
+  regress on small models.
+- `InferenceSession` is not safe to share across forked processes; create
+  one session per worker rather than sharing a Python object across a
+  multiprocessing pool, otherwise threadpool state corrupts.
+
+## Related specs
+- `specs/openvino.md` — Intel-tuned alternative engine that ingests the
+  exact same ONNX graph; useful for side-by-side CPU benchmarking on the
+  same host so you can quantify the gap between a vendor-neutral runtime
+  and one tuned for the chip you actually have.
 
 ## References
 - Docs: https://onnxruntime.ai/docs/
 - Source: https://github.com/microsoft/onnxruntime
+- Python API reference: https://onnxruntime.ai/docs/api/python/api_summary.html

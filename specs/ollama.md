@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | AI / LLM inference |
+| Category | ai / llm inference |
 | Repo role | core |
 | Install script | scripts/setup/ollama.sh |
 | Validate suite | scripts/validate/ai.sh |
 | Compose / config | setup/ollama/docker-compose.yml (alternative) |
 | Default port(s) | 11434 |
 | Default credentials | — |
+| Resource footprint | server idle ~200 MB RAM + model load adds quantized weight size (smollm2:135m ~270 MB, llama3.2:1b ~1.3 GB); disk per model = same |
 
 ## What it is
 Ollama is a single-binary daemon that serves quantized open LLMs (Llama 3,
@@ -67,14 +68,44 @@ curl -s http://localhost:11434/api/generate -d '{"model":"smollm2:135m","prompt"
 Returns a JSON document with a non-empty `response` field once the model is
 loaded into RAM.
 
-## Suggested example progression
-- **Beginner** — `examples/beginner/02_ollama_generate.py` — single-prompt
-  streaming generate against `/api/generate` *(existing)*
-- **Intermediate** — `examples/intermediate/02_ollama_chat_history.py` —
-  multi-turn chat with rolling history via `/api/chat` *(planned)*
-- **Advanced** — `examples/advanced/01_rag_pipeline.py` — Ollama embed +
-  generate over pgvector for retrieval-augmented answers *(existing)*
+## Common pitfalls
+- The `ollama serve` PID written to `setup/state/ollama_server.pid` is lost
+  after reboot — re-run `ollama serve` or wire up a systemd unit before the
+  first request, otherwise `/api/tags` will hang and the verify probe in
+  `scripts/setup/ollama.sh` will exit non-zero on a fresh boot.
+- `OLLAMA_MODELS` must point at a path the running user can read and write;
+  silently flipping back to the default `~/.ollama/` happens if perms are
+  wrong, which then leaks weights outside the repo and breaks `cleanup.sh`.
+- The first prompt against a freshly started server is slow because the
+  quantized weights are being mmap'd and warmed into RAM (especially on
+  cold-cache disks) — this is *not* a failure, keep client timeouts above
+  30 s for `llama3.2:1b` and above 60 s for anything in the 7B+ range.
+- Concurrent generates against *different* models will trigger eviction and
+  reload of the previous model; pin one model per server (or run multiple
+  `ollama serve` instances on different ports) if latency matters.
+- The HTTP API ignores OpenAI-style auth headers entirely — never expose
+  port 11434 beyond localhost without putting a reverse proxy with auth in
+  front of it, since any caller can pull arbitrary models or generate.
+
+## Related specs
+- `specs/llama-cpp.md` — lower-level alternative; Ollama bundles llama.cpp
+  underneath, so dropping down a layer gives finer control over quantization
+  flags, sampler params, and binary build options at the cost of having to
+  manage GGUF files and lifecycle yourself. Pick Ollama when you want the
+  shortest path from `pull` to a callable HTTP endpoint, pick llama.cpp when
+  you need to benchmark or pin a specific binary build, and remember that
+  switching between them does *not* require re-downloading models because
+  both consume the same GGUF files (subject to filename / location).
+- `specs/pgvector.md` — paired storage for the RAG pipeline; the embed
+  endpoint here writes vectors that pgvector indexes for similarity search,
+  and the advanced example wires the two together end-to-end so you can see
+  Ollama, the database, and the retrieval loop interacting in one script.
+- `specs/prometheus.md` — scrape Ollama's metrics endpoint for latency,
+  tokens-per-second, and KV-cache occupancy dashboards alongside the other
+  oss-learn services that already register as scrape targets, giving a
+  single-pane-of-glass view of the model + storage + queue stack.
 
 ## References
 - Docs: https://github.com/ollama/ollama/blob/main/docs/api.md
 - Source: https://github.com/ollama/ollama
+- Model registry: https://ollama.com/library

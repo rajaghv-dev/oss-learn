@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Low-code / data app |
+| Category | low-code / data app |
 | Repo role | optional |
 | Install script | scripts/setup/nocobase.sh |
-| Validate suite | scripts/validate/nocobase.sh |
+| Validate suite | `scripts/validate/nocobase.sh` |
 | Compose / config | infra/nocobase/docker-compose.yml |
 | Default port(s) | 13000 |
 | Default credentials | set on first visit (seeded as admin@nocobase.com / admin1234 via INIT_ROOT_*) |
+| Resource footprint | ~400 MB RAM (app + postgres), ~700 MB images |
 
 ## What it is
 NocoBase is an open-source, plugin-based low-code platform: collections
@@ -68,10 +69,21 @@ curl -s http://localhost:13000/api/app:getInfo
 ```
 Returns a small JSON document describing the running NocoBase app (version, lang, etc.) once first-run install has completed; a 404 or empty body means the app process has not yet finished bootstrapping.
 
+## Common pitfalls
+- **First-visit setup flow if `INIT_ROOT_*` vars are unset** — the bundled compose file seeds `admin@nocobase.com` / `admin1234` via `INIT_ROOT_EMAIL` / `INIT_ROOT_PASSWORD` / `INIT_ROOT_NICKNAME`; if any are missing the app falls back to an interactive setup wizard on first load and the seeded creds in this spec will not work.
+- **Needs Postgres (and Redis for some plugins)** — the app refuses to boot without a healthy DB; `oss-nocobase` waits on `oss-nocobase-db`'s `pg_isready` healthcheck, and several plugins (workflow, queue) further expect a Redis instance — this stack does not ship one, so those plugins stay disabled.
+- **150 s readiness window covers first-run schema install** — `scripts/setup/nocobase.sh` polls `GET /api/app:getInfo` for up to 150 s (30 × 5 s) so the initial schema install can finish; before that completes the API returns 404 even though the container is "running".
+- **Some plugins require manual install via the UI** — only the core plugins are enabled out of the box; data-source connectors, charts, workflow extensions etc. must be enabled (or in some cases uploaded) from `Settings → Plugins`, and a few need a container restart to register.
+- **`--force` wipes the dedicated Postgres** — `down -v --remove-orphans` drops the volume, so any collections, records, and plugin state created during exploration are lost on rebuild.
+
 ## Suggested example progression
 - **Beginner** — `examples/beginner/nocobase_hello.py` — call `/api/app:getInfo` and print the version + boot status *(planned)*
 - **Intermediate** — `examples/intermediate/nocobase_collection_crud.py` — create a collection, insert records via the REST API, and list them back *(planned)*
 - **Advanced** — `examples/advanced/nocobase_workflow.py` — define a collection plus a workflow that fires on insert and posts to a local webhook *(planned)*
+
+## Related specs
+- [postgres.md](postgres.md) — the relational store NocoBase models on top of; useful for inspecting the tables and queries the platform generates from visual changes.
+- [gitea.md](gitea.md) — Gitea webhooks make a natural workflow trigger for NocoBase automations on push or pull-request events.
 
 ## References
 - Docs: https://docs.nocobase.com/

@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | AI / model inference |
+| Category | ai / model inference |
 | Repo role | optional |
 | Install script | scripts/setup/openvino.sh |
 | Validate suite | scripts/validate/ai.sh |
 | Compose / config | — |
 | Default port(s) | — |
 | Default credentials | — |
+| Resource footprint | pip wheel ~50 MB on disk (+ openvino-dev ~200 MB); IR runtime RAM depends on model and target device |
 
 ## What it is
 OpenVINO is Intel's inference toolkit that compiles ONNX, PaddlePaddle,
@@ -67,15 +68,37 @@ venv/bin/python3 -c "import openvino as ov; print(ov.__version__, ov.Core().avai
 ```
 Prints the OpenVINO version and a device list including at least `CPU`.
 
-## Suggested example progression
-- **Beginner** — `examples/beginner/05_openvino_add_model.py` — build the
-  Add graph and run it on the CPU device *(planned)*
-- **Intermediate** — `examples/intermediate/05_openvino_onnx_to_ir.py` — read
-  an ONNX file with `core.read_model`, save IR, reload, and infer *(planned)*
-- **Advanced** — `examples/advanced/04_openvino_vs_ort_bench.py` —
-  benchmark the same ONNX graph on OpenVINO CPU vs ONNX Runtime CPU and
-  report tokens or images per second *(planned)*
+## Common pitfalls
+- The `openvino` wheel only supports Python ≥3.9 (and only certain 3.12
+  patch versions on older OpenVINO releases) — `pip install openvino` will
+  silently resolve to an ancient build on EOL Pythons, and the symptom is
+  usually an obscure `ImportError: undefined symbol` rather than a clean
+  version mismatch error, so check `python --version` before `pip` does.
+- The iGPU plugin requires the `intel-opencl-icd` system package; without
+  it `core.available_devices` will list only `CPU` even on a Tiger-Lake or
+  newer laptop, and `compile_model(model, "GPU")` will raise at runtime.
+  Install via `apt install intel-opencl-icd` and re-run setup.
+- INT8 quantization needs `openvino-dev` (which pulls in POT / NNCF and
+  ~200 MB of extra wheels); the runtime `openvino` wheel alone can *load*
+  pre-quantized IR but cannot *produce* it from FP32 inputs, so you need
+  the dev wheel on whichever box does the conversion.
+- `core.read_model` against a `.onnx` file works but requires the producer
+  to use a supported opset (currently 7-22 on OpenVINO 2024.x) — when in
+  doubt, convert via `mo` or `ovc` to native IR first; the IR loader is
+  noticeably faster and surfaces opset issues at conversion time, not
+  inference time.
+- The meta-device `AUTO` selects `GPU` when present and falls back to
+  `CPU` silently — pin `"CPU"` explicitly when benchmarking against ONNX
+  Runtime to keep the comparison apples-to-apples, otherwise you may be
+  comparing two different devices without realising it.
+
+## Related specs
+- `specs/onnxruntime.md` — vendor-neutral alternative that runs the same
+  ONNX graph on CPU without IR conversion; useful as a portability baseline
+  and as the reference point against which OpenVINO's INT8 / VNNI / AMX
+  speedups are measured in the advanced benchmarking example.
 
 ## References
 - Docs: https://docs.openvino.ai/
 - Source: https://github.com/openvinotoolkit/openvino
+- Python API quickstart: https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application.html

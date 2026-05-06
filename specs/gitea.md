@@ -4,13 +4,14 @@
 
 | Field | Value |
 |-------|-------|
-| Category | Source control |
+| Category | source control |
 | Repo role | optional |
 | Install script | scripts/setup/git.sh |
-| Validate suite | scripts/validate/git.sh |
+| Validate suite | `scripts/validate/git.sh` |
 | Compose / config | infra/git/docker-compose.yml |
 | Default port(s) | 3001 (HTTP), 222 (SSH) |
 | Default credentials | set on first visit (first-run wizard creates the admin) |
+| Resource footprint | ~150 MB RAM (app + Postgres 16-alpine), ~250 MB images total |
 
 ## What it is
 Gitea is a Go-based, self-hosted Git service that provides repositories,
@@ -68,10 +69,21 @@ curl -s http://localhost:3001/api/v1/version
 ```
 Returns a small JSON like `{"version":"1.x.y"}` once Gitea has finished its first-run migration; a connection error means the container has not yet completed schema setup.
 
+## Common pitfalls
+- **First-boot wizard required** — no admin is baked into the compose file; the very first visit to `http://localhost:3001` must complete the wizard, otherwise API calls that need auth will fail with 401.
+- **120 s readiness window covers DB migration** — `scripts/setup/git.sh` polls `GET /` for up to 120 s (24 × 5 s) so the first-run schema install can finish; bailing earlier and curl-ing the URL will look like a hung container.
+- **SSH lives on port 222, not 22** — clone URLs must use `ssh://git@localhost:222/<user>/<repo>.git`; the host's own sshd still owns port 22 and will reject git commands.
+- **Bind-mount UID/GID must match the host user** — `USER_UID=1000` / `USER_GID=1000` in the compose file align the in-container `git` user with the typical host user; if your host UID differs, files under `infra/git/data/gitea` will be owned by the wrong user and Gitea will fail to write to its data dir.
+- **`--force` deletes the volume** — `down -v --remove-orphans` wipes both the app data and the dedicated Postgres, so any repos created during exploration are lost on rebuild.
+
 ## Suggested example progression
 - **Beginner** — `examples/beginner/gitea_hello.py` — hit `/api/v1/version` and print the running Gitea version *(planned)*
 - **Intermediate** — `examples/intermediate/gitea_repo_crud.py` — create a repo via the API, push a commit, and list issues *(planned)*
 - **Advanced** — `examples/advanced/gitea_webhook_demo.py` — register a webhook and react to push events from a local listener *(planned)*
+
+## Related specs
+- [plane.md](plane.md) — wire Gitea webhooks (push, PR) into Plane issues to mirror a GitHub-Issues-style flow.
+- [nocobase.md](nocobase.md) — trigger NocoBase low-code workflows from Gitea webhooks for "on push, do X" automations.
 
 ## References
 - Docs: https://docs.gitea.com/

@@ -12,6 +12,7 @@
 | Compose / config | infra/opensearch/docker-compose.yml |
 | Default port(s) | 9200 (OpenSearch), 5601 (Dashboards) |
 | Default credentials | — (security plugin disabled in dev) |
+| Resource footprint | OpenSearch ~1.5 GB RAM (single node, default JVM heap 512 MB), ~700 MB image; Dashboards ~200 MB RAM, ~600 MB image |
 
 ## What it is
 OpenSearch is the open-source, Elasticsearch-compatible search engine that
@@ -79,6 +80,22 @@ Returns `"status":"yellow"` (or green) once the cluster is up; pair with
 `curl -sI http://localhost:5601/api/status` to confirm Dashboards is
 reachable.
 
+## Common pitfalls
+- `vm.max_map_count` must be ≥262144 — the setup script may set it via
+  `sudo sysctl -w vm.max_map_count=262144`; on macOS/Docker Desktop the VM
+  handles this transparently and no host change is needed.
+- JVM heap defaults to half the host RAM, which crushes laptops; oss-learn
+  pins it via `OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m` — override the same
+  way if you bump the workload.
+- Single-node mode requires `discovery.type=single-node`; without it the
+  cluster waits for a quorum forever and `/_cluster/health` never responds.
+- Security plugin is disabled in dev (`DISABLE_SECURITY_PLUGIN=true`) —
+  never expose port 9200 outside localhost; anyone on the network can read
+  and write every index.
+- Dashboards relies on an internal `.kibana` index; first boot can take
+  60–90 s while it initializes, during which `/api/status` returns 503 even
+  though the container is "healthy".
+
 ## Suggested example progression
 - **Beginner** — `examples/beginner/opensearch_hello.py` — connect to
   `localhost:9200`, create an index, index one document, fetch it back
@@ -90,6 +107,25 @@ reachable.
   date-histogram + terms aggregations over a logs-style index, compared
   against equivalent Postgres `GROUP BY` *(planned)*
 
+## Related specs
+- [grafana.md](grafana.md) — alternative visualization for time-series,
+  complementary to Dashboards when metrics live in Prometheus rather than
+  in indices.
+- [postgres.md](postgres.md) — relational alternative for structured data;
+  pair with OpenSearch to compare lexical search and BM25 against
+  Postgres full-text + pgvector on the same dataset.
+- [prometheus.md](prometheus.md) — metrics source that can be scraped into
+  OpenSearch via exporters when you want long-term retention or Dev Tools
+  exploration over historical samples.
+
 ## References
 - Docs: https://opensearch.org/docs/latest/
+- Dashboards docs: https://opensearch.org/docs/latest/dashboards/
+- Docker images: https://hub.docker.com/u/opensearchproject
+- Query DSL reference:
+  https://opensearch.org/docs/latest/query-dsl/
+- Cluster health API:
+  https://opensearch.org/docs/latest/api-reference/cluster-api/cluster-health/
+- Important system settings (vm.max_map_count, ulimits):
+  https://opensearch.org/docs/latest/install-and-configure/install-opensearch/index/#important-settings
 - Source: https://github.com/opensearch-project/OpenSearch
