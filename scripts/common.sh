@@ -258,4 +258,10 @@ detect_system() {
   log_info "System: $os ($arch) | CPU: ${CPU_CORES} cores ($CPU_VENDOR) | RAM: ${MEM_GB}GB | Disk: ${DISK_GB}GB"
 }
 
+print_system_summary() { detect_system; }
+
+# Per-component manifest helpers — thin wrappers so step scripts can call them
+# by name rather than spelling out write_manifest at every callsite.
+write_manifest_postgres() { write_manifest "postgres" "pgsql_dir: ${1:-}" "age_tarball: ${2:-}"; }
+
 detect_system

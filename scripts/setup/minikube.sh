@@ -58,12 +58,30 @@ if [ "$CHECK_ONLY" -eq 1 ]; then
   exit 0
 fi
 
+# ── Decide install destination (need root for /usr/local/bin) ─────────────────
+# If sudo is non-interactively available we install to /usr/local/bin (system-wide),
+# otherwise fall back to ~/.local/bin so the orchestrator can run unattended.
+INSTALL_DIR="/usr/local/bin"
+INSTALL_CMD="sudo install"
+if ! sudo -n true 2>/dev/null; then
+  INSTALL_DIR="$HOME/.local/bin"
+  INSTALL_CMD="install"
+  mkdir -p "$INSTALL_DIR"
+  case ":$PATH:" in
+    *":$INSTALL_DIR:"*) ;;
+    *) export PATH="$INSTALL_DIR:$PATH"
+       log_warn "sudo unavailable — installing to $INSTALL_DIR (added to PATH for this run)"
+       log_warn "  Add to your shell rc:  export PATH=\"\$HOME/.local/bin:\$PATH\""
+       ;;
+  esac
+fi
+
 # ── minikube ──────────────────────────────────────────────────────────────────
 if ! command -v minikube &>/dev/null || [ "$FORCE" -eq 1 ]; then
   log_header "Installing minikube"
   curl -fsSLo /tmp/minikube-linux-amd64 \
     https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-  sudo install /tmp/minikube-linux-amd64 /usr/local/bin/minikube
+  $INSTALL_CMD /tmp/minikube-linux-amd64 "$INSTALL_DIR/minikube"
   rm /tmp/minikube-linux-amd64
   log_info "minikube installed: $(minikube version --short)"
 else
@@ -76,7 +94,11 @@ if ! command -v kubectl &>/dev/null || [ "$FORCE" -eq 1 ]; then
   K8S_STABLE=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
   curl -fsSLo /tmp/kubectl \
     "https://dl.k8s.io/release/${K8S_STABLE}/bin/linux/amd64/kubectl"
-  sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+  if [ "$INSTALL_CMD" = "sudo install" ]; then
+    sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+  else
+    install -m 0755 /tmp/kubectl "$INSTALL_DIR/kubectl"
+  fi
   rm /tmp/kubectl
   log_info "kubectl installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
 else
@@ -86,7 +108,13 @@ fi
 # ── Helm ──────────────────────────────────────────────────────────────────────
 if ! command -v helm &>/dev/null || [ "$FORCE" -eq 1 ]; then
   log_header "Installing Helm"
-  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  if [ "$INSTALL_CMD" = "sudo install" ]; then
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  else
+    # Unattended install without sudo: place helm under user PATH
+    HELM_INSTALL_DIR="$INSTALL_DIR" USE_SUDO="false" \
+      bash -c 'curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash'
+  fi
   log_info "Helm installed: $(helm version --short)"
 else
   log_info "Helm already installed: $(helm version --short)"

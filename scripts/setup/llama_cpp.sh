@@ -111,7 +111,7 @@ VERIFY_MODEL_FILE="$STATE_DIR/verify_model.gguf"
 # OpenVINO before this script runs in the orchestrator).
 # Otherwise: standard CPU variant (works on any x64 Linux).
 select_variant() {
-  detect_cpu
+  detect_system
 
   local python="${OSS_PYTHON:-python3}"
   if [ -f "$REPO_ROOT/venv/bin/python3" ]; then

@@ -77,7 +77,22 @@ set_script_log "ollama"
 
 
 # ── Constants ────────────────────────────────────────────────────────────────
-OLLAMA_BIN="/usr/local/bin/ollama"
+# Install destination depends on whether sudo is non-interactively usable.
+# With sudo: system-wide at /usr/local; without: user-local at ~/.local so
+# the orchestrator can run unattended (mirrors scripts/setup/minikube.sh).
+if sudo -n true 2>/dev/null; then
+  OLLAMA_PREFIX="/usr/local"
+  OLLAMA_INSTALL_MODE="sudo"
+else
+  OLLAMA_PREFIX="$HOME/.local"
+  OLLAMA_INSTALL_MODE="user"
+  mkdir -p "$OLLAMA_PREFIX/bin" "$OLLAMA_PREFIX/lib"
+  case ":$PATH:" in
+    *":$OLLAMA_PREFIX/bin:"*) ;;
+    *) export PATH="$OLLAMA_PREFIX/bin:$PATH" ;;
+  esac
+fi
+OLLAMA_BIN="$OLLAMA_PREFIX/bin/ollama"
 OLLAMA_URL="http://localhost:11434"
 
 # Model data lives LOCAL to the repo (not ~/.ollama/models) so that:
@@ -192,30 +207,43 @@ else
     exit 1
   fi
 
-  # ── Install via official curl|sh script ──────────────────────────────────
-  # The official installer handles:
-  #   - Multi-file extraction (binary + libs)
-  #   - User creation (ollama system user)
-  #   - Library search paths for CPU backend
-  #   - systemd service registration (if systemd present)
-  # We record the system-installed binary in the manifest so
-  # setup/uninstall.sh can clean it up.
-  log_step "Installing Ollama via official install script (sudo required)..."
+  # ── Install: sudo path (curl|sh) OR sudo-less tarball into ~/.local ──────
+  # The official curl|sh script needs sudo (writes /usr/local/bin and
+  # creates an ollama system user). When sudo isn't reachable from the
+  # orchestrator's child shell, fall back to extracting the published
+  # ollama-linux-amd64.tgz under $HOME/.local — same binary, no daemon
+  # user, no systemd unit.
+  if [ "$OLLAMA_INSTALL_MODE" = "sudo" ]; then
+    log_step "Installing Ollama via official install script (sudo)..."
 
-  # zstd is required by the Ollama installer for decompression
-  if ! command -v zstd &>/dev/null; then
-    log_step "Installing zstd (required by the Ollama installer)..."
-    if   command -v apt-get &>/dev/null; then sudo apt-get install -y zstd
-    elif command -v dnf     &>/dev/null; then sudo dnf install -y zstd
-    elif command -v yum     &>/dev/null; then sudo yum install -y zstd
-    else
-      log_error "Install zstd manually: sudo apt-get install zstd"
+    # zstd is required by the Ollama installer for decompression
+    if ! command -v zstd &>/dev/null; then
+      log_step "Installing zstd (required by the Ollama installer)..."
+      if   command -v apt-get &>/dev/null; then sudo apt-get install -y zstd
+      elif command -v dnf     &>/dev/null; then sudo dnf install -y zstd
+      elif command -v yum     &>/dev/null; then sudo yum install -y zstd
+      else
+        log_error "Install zstd manually: sudo apt-get install zstd"
+        exit 1
+      fi
+    fi
+
+    run_or_skip "ollama_install" "curl https://ollama.com/install.sh | sh" \
+      bash -c 'curl -fsSL https://ollama.com/install.sh | sh'
+  else
+    log_step "Installing Ollama from tarball into $OLLAMA_PREFIX (sudo not available)..."
+    if ! command -v zstd &>/dev/null; then
+      log_error "zstd is required to extract the Ollama release tarball; install it with apt-get install zstd"
       exit 1
     fi
+    OLLAMA_TARBALL_URL="${OLLAMA_TARBALL_URL:-https://github.com/ollama/ollama/releases/latest/download/ollama-linux-amd64.tar.zst}"
+    OLLAMA_TMPDIR=$(mktemp -d)
+    trap 'rm -rf "$OLLAMA_TMPDIR"' RETURN
+    run_or_skip "ollama_install" "tarball -> $OLLAMA_PREFIX" \
+      bash -c "curl -fsSL --retry 3 '$OLLAMA_TARBALL_URL' -o '$OLLAMA_TMPDIR/ollama.tar.zst' \
+        && tar --zstd -xf '$OLLAMA_TMPDIR/ollama.tar.zst' -C '$OLLAMA_PREFIX' \
+        && chmod +x '$OLLAMA_BIN'"
   fi
-
-  run_or_skip "ollama_install" "curl https://ollama.com/install.sh | sh" \
-    bash -c 'curl -fsSL https://ollama.com/install.sh | sh'
 
   OLLAMA_VER=$(ollama --version 2>/dev/null | head -1 || echo "installed")
   log_info "Installed: $OLLAMA_VER -> $OLLAMA_BIN"
