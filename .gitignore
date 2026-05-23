@@ -14,6 +14,8 @@ env/
 # Logs and state
 logs/
 setup/state/
+setup/data/
+setup/llama_cpp/
 *.log
 
 # Local data
